@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<extension format="1.0">
+	<extension_code><![CDATA[jb-mail-to-ticket-automation-v2-contactmethod]]></extension_code>
+	<company><![CDATA[]]></company>
+	<author><![CDATA[Jeffrey Bostoen]]></author>
+	<label><![CDATA[Feature: Mail to Ticket Automation - find caller by contact method]]></label>
+	<description><![CDATA[Considers ContactMethod first to find caller.]]></description>
+	<version><![CDATA[2.6.201230]]></version>
+	<release_date><![CDATA[2020-12-30]]></release_date>
+	<version_description><![CDATA[]]></version_description>
+	<itop_version_min><![CDATA[2.6.0]]></itop_version_min>
+	<status>stable</status>
+	<mandatory>false</mandatory>
+	<more_info_url><![CDATA[https://jbostoen.github.io/itop-extensions-documentation/]]></more_info_url>
+</extension>
