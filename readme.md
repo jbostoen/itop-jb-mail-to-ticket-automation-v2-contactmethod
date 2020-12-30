@@ -11,7 +11,9 @@ Need custom development?
 Please get in touch to discuss the terms: **jbostoen.itop@outlook.com**
 
 ## What?
-Considers ContactMethod first to find caller.
+Uses known contact methods to find the caller.
+
+This has the benefit that a caller can send e-mails from multiple e-mail addresses, but is still identified as the same individual person.
 
 ## Requirements
 * iTop extensions

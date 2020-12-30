@@ -64,20 +64,20 @@ abstract class PolicyFindCallerByContactMethod extends Policy implements iPolicy
 			if(isset(self::$oEmail->oInternal_Contact) == false || self::$oEmail->oInternal_Contact === null) {
 				
 				$oCaller = null;
-				$sContactMethodQuery = 'SELECT ContactMethod WHERE contact_method = "email" AND contact_detail LIKE ":email"';
+				$sOQL = 'SELECT ContactMethod WHERE contact_method = "email" AND contact_detail LIKE :email';
 				$sCallerEmail = self::$oEmail->sCallerEmail;
-				$oSet_ContactMethod = new DBObjectSet(DBObjectSearch::FromOQL($sContactMethodQuery), [], ['email' => $sCallerEmail]);
+				$oSet_ContactMethod = new DBObjectSet(DBObjectSearch::FromOQL($sOQL), [], ['email' => $sCallerEmail]);
 				
 				switch($oSet_ContactMethod->Count()) {
 					
 					case 1:
 						
 						// Ok, the ContactMethod was found in iTop
-						$oContactMethod = $oSet->Fetch();
+						$oContactMethod = $oSet_ContactMethod->Fetch();
 						self::Trace("... ContactMethod found: ID ".$oContactMethod->GetKey());
 						
-						$sContactMethodQuery = 'SELECT Person WHERE id = ":id"';
-						$oSet_Person = new DBObjectSet(DBObjectSearch::FromOQL($sContactQuery, [], ['id' => $oContactMethod->Get('person_id')]));
+						$sOQL = 'SELECT Person WHERE id = :id';
+						$oSet_Person = new DBObjectSet(DBObjectSearch::FromOQL($sOQL), [], ['id' => $oContactMethod->Get('person_id')]);
 						$oCaller = $oSet_Person->Fetch();
 						break;
 						
@@ -89,7 +89,7 @@ abstract class PolicyFindCallerByContactMethod extends Policy implements iPolicy
 					
 					default:
 					
-						self::Trace("... Found {$oSet_ContactMethod>Count()} ContactMethod objects. Unhandled in this basic implementation.");
+						self::Trace("... Found {$oSet_ContactMethod->Count()} ContactMethod objects. Unhandled in this basic implementation.");
 						break;
 						
 				}
