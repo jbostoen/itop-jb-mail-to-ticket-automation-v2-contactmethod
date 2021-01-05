@@ -79,6 +79,12 @@ abstract class PolicyFindCallerByContactMethod extends Policy implements iPolicy
 						$sOQL = 'SELECT Person WHERE id = :id';
 						$oSet_Person = new DBObjectSet(DBObjectSearch::FromOQL($sOQL), [], ['id' => $oContactMethod->Get('person_id')]);
 						$oCaller = $oSet_Person->Fetch();
+						
+						// Person was found. But is this already the primary e-mail address?
+						// This is necessary to respond to the e-mail address which was used last by the caller
+						$oCaller->Set('email', $oContactMethod->Get('contact_detail'));
+						$oCaller->DBUpdate();
+						
 						break;
 						
 					case 0:
