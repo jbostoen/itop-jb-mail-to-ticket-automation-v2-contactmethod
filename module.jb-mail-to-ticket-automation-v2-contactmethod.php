@@ -20,6 +20,8 @@ SetupWebPage::AddModule(
                 // Setup
                 //
                 'dependencies' => array( 
+					'jb-contactmethod/2.7.0',
+					'jb-itop-standard-email-synchro/2.7.0',
                 ),
                 'mandatory' => false,
                 'visible' => true,
