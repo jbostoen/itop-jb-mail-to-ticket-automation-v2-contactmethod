@@ -21,7 +21,7 @@ SetupWebPage::AddModule(
                 //
                 'dependencies' => array( 
 					'jb-contactmethod/2.7.0',
-					'jb-itop-standard-email-synchro/2.7.0',
+					'jb-itop-standard-email-synchro/2.7.231201',
                 ),
                 'mandatory' => false,
                 'visible' => true,
@@ -30,7 +30,7 @@ SetupWebPage::AddModule(
                 //
                 'datamodel' => array(
 					'model.jb-mail-to-ticket-automation-v2-contactmethod.php',
-					'app/policy.contactmethod.class.inc.php'
+					'app/step.contactmethod.class.inc.php'
                 ),
                 'webservice' => array(
 
