@@ -1,5 +1,5 @@
 # jb-mail-to-ticket-automation-v2-contactmethod
-Copyright (C) 2020 Jeffrey Bostoen
+Copyright (c) 2020-2024 Jeffrey Bostoe
 
 [![License](https://img.shields.io/github/license/jbostoen/iTop-custom-extensions)](https://github.com/jbostoen/iTop-custom-extensions/blob/master/license.md)
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.me/jbostoen)
