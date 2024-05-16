@@ -11,19 +11,15 @@ Need custom development?
 Please get in touch to discuss the terms: **jbostoen.itop@outlook.com**
 
 ## What?
-Uses known contact methods to find the caller.
 
+Uses alternative known e-mail addresses to find callers and additional contacts.
 This has the benefit that a caller can send e-mails from multiple e-mail addresses, but is still identified as the same individual person.
 
 ## Requirements
 * iTop extensions
-  * [jb-contactmethod](https://github.com/jbostoen/itop-jb-contactmethod)
+  * [jb-contactmethod](https://github.com/jbostoen/itop-jb-contactmethod) (free) or  
+    [combodo-email-alias](https://store.itophub.io/en_US/products/combodo-email-alias) (purchase from Combodo)
   * [jb-mail-to-ticket-automation-v2](https://github.com/jbostoen/itop-jb-mail-to-ticket-automation-v2)
-
-## Cookbook
-
-PHP:
-* implement a custom mail policy
 
 
 
