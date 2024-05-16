@@ -13,10 +13,11 @@ namespace jb_itop_extensions\mail_to_ticket;
 // iTop internals
 use \DBObjectSet;
 use \DBObjectSearch;
-use \EmailMessage;
-
-// iTop classes
+use \MetaModel;
 use \Person;
+
+// Generic
+use \Exception;
  
 /**
  * Class StepFindCallerByContactMethod. Step to find the caller (Person) based on ContactMethod.
@@ -28,11 +29,53 @@ abstract class StepFindCallerByContactMethod extends Step {
 	
 	/**
 	 * @inheritDoc
-	 * @details Should be run before StepFindCaller; therefore $iPrecedence should be lower than that of StepFindCaller (110)
 	 *
-	 */
-	public static $iPrecedence = 109; // Should be run before StepFindCaller; therefore $iPrecedence should be lower than that of StepFindCaller
+	 */ 
+	// Should be executed before StepFindCaller;
+	// therefore $iPrecedence should be lower than that of StepFindCaller (110).
+	public static $iPrecedence = 109;
 	
+	/**
+	 * Finds contacts by contact method (ContactMethod) or e-mail alias (Combodo's EmailAlias).
+	 * 
+	 * @param \String $sEmail E-mail address.
+	 *
+	 * @return \Person|null
+	 */
+	public static function FindContactByEmail(String $sEmail) : ?Person {
+
+		/** @var \Person $oPerson|null A person object in iTop. */
+		$oPerson = null;
+
+		foreach([
+			'ContactMethod' => 'SELECT Person AS p JOIN ContactMethod AS c ON c.person_id = p.id WHERE c.contact_method = "email" AND c.contact_detail LIKE :email',
+			'EmailAlias' => 'SELECT Person AS p JOIN EmailAlias AS a ON a.contact_id = p.id WHERE a.email = :email'
+		] as $sClass => $sOQL) {
+
+			// The class must exist.
+			if(MetaModel::IsValidClass($sClass) == true) {
+				
+				// Find person objects; oldest first.
+				$oFilter_Person = DBObjectSearch::FromOQL_AllData($sOQL);
+				$oSet_Person = new DBObjectSet($oFilter_Person, ['id' => true], [
+					'email' => $sEmail	
+				]);
+				$oPerson = $oSet_Person->Fetch();
+
+				static::Trace('... OQL '.$sClass.' returned '.$oSet_Person->Count().' results.');
+
+				// If one of the queries finds a person: exit.
+				if($oPerson !== null) {
+					break;
+				}
+
+			}
+
+		}
+
+		return $oPerson;
+
+	}
 	
 	/**
 	 * @inheritDoc 
@@ -40,66 +83,44 @@ abstract class StepFindCallerByContactMethod extends Step {
 	 */
 	public static function Execute() {
 		
-		// Checking if there's an unknown caller
+
+		/** @var \EmailMessage $oEmail E-mail message. */
+		$oEmail = static::GetMail();
+
+		/** @var \RawEmailMessage $oRawEmail Raw e-mail message. */
+		$oRawEmail = static::GetRawMail();
+	
+		// Don't even bother if jb-contactmethod is not enabled as an extension.
+		if(MetaModel::IsValidClass('ContactMethod') == false && MetaModel::IsValidClass('EmailAlias') == false) {
+			static::Trace(".. Step not relevant: No relevant classes exist (ContactMethod, EmailAlias).");
+			return;
+		}
+
+		/** @var \Person $oCaller Person. */
+		$oCaller = $oEmail->GetSender();
 		
-			// Don't even bother if jb-contactmethod is not enabled as an extension.
-			if(class_exists('ContactMethod') == false) {
-				static::Trace(".. Step not relevant: class ContactMethod does not exist.");
-				return true;
-			}
-			
-			if(isset(static::$oEmail->oInternal_Contact) == false || static::$oEmail->oInternal_Contact === null) {
-				
-				$oCaller = null;
-				$sOQL = 'SELECT ContactMethod WHERE contact_method = "email" AND contact_detail LIKE :email';
-				$sCallerEmail = static::$oEmail->sCallerEmail;
-				$oSet_ContactMethod = new DBObjectSet(DBObjectSearch::FromOQL($sOQL), [], ['email' => $sCallerEmail]);
-				
-				switch($oSet_ContactMethod->Count()) {
-					
-					case 1:
-						
-						// Ok, the ContactMethod was found in iTop
-						$oContactMethod = $oSet_ContactMethod->Fetch();
-						static::Trace("... ContactMethod found: ID ".$oContactMethod->GetKey());
-						
-						$sOQL = 'SELECT Person WHERE id = :id';
-						$oSet_Person = new DBObjectSet(DBObjectSearch::FromOQL($sOQL), [], ['id' => $oContactMethod->Get('person_id')]);
-						$oCaller = $oSet_Person->Fetch();
-						
-						// Person was found. But is this already the primary e-mail address?
-						// This is necessary to respond to the e-mail address which was used last by the caller
-						$oCaller->Set('email', $oContactMethod->Get('contact_detail'));
-						$oCaller->DBUpdate();
-						
-						break;
-						
-					case 0:
+		// Don't bother if the caller is already determined.
+		if($oCaller !== null) {
+			static::Trace("... Caller already determined by previous step. Skip.");
+		}
+
+		$sCallerEmail = $oRawEmail->GetSender()[0]->GetEmailAddress();
+
+		/** @var \Person|null $oCaller The related person. */
+		$oPerson = StepFindCallerByContactMethod::FindContactByEmail($sCallerEmail);
+
+		if($oPerson === null) {
+			return;
+		}
+
+		// Update the e-mail address (on the person object) to the one which was used last by the caller.
+		static::Trace(".. Update person {$oPerson->Get('friendlyname')} - Set primary e-mail to {$sCallerEmail}");
+		$oPerson->Set('email', $sCallerEmail);
+		$oPerson->DBUpdate();
 		
-						// ContactMethod was not found.
-						static::Trace("... ContactMethod not found.");
-						break;
-					
-					default:
-					
-						static::Trace("... Found {$oSet_ContactMethod->Count()} ContactMethod objects. Unhandled in this basic implementation.");
-						break;
-						
-				}
-		
-				if($oCaller === null) {
-					static::Trace("... Caller has not been identified (or without enough certainty).");
-				}
-		
-				// Set caller for email
-				static::$oEmail->oInternal_Contact = $oCaller;
-		
-			}
-			else {
-				static::Trace("... Caller already determined by previous step. Skip.");
-			}
-		
-		
+		// Set caller for email
+		$oEmail->SetSender($oPerson);
+	
 	}
 	
 }
@@ -115,10 +136,11 @@ abstract class StepFindAdditionalContactsByContactMethod extends Step {
 	
 	/**
 	 * @inheritDoc
-	 * @details Should be run before StepFindCaller; therefore $iPrecedence should be lower than that of StepFindCaller
 	 *
 	 */
-	public static $iPrecedence = 114; // Should be run before StepFindAdditionalContacts; therefore $iPrecedence should be lower than that of StepFindAdditionalContacts (115)
+	// Should be executed before StepFindAdditionalContacts; 
+	// therefore $iPrecedence should be lower than that of StepFindAdditionalContacts (115).
+	public static $iPrecedence = 114;
 	
 	/**
 	 * @inheritDoc
@@ -130,73 +152,57 @@ abstract class StepFindAdditionalContactsByContactMethod extends Step {
 		// Checking if there's an unknown caller
 		
 			// Don't even bother if jb-contactmethod is not enabled as an extension.
-			if(class_exists('ContactMethod') == false) {
-				static::Trace(".. Step not relevant: class ContactMethod does not exist.");
-				return true;
+			if(MetaModel::IsValidClass('ContactMethod') == false && MetaModel::IsValidClass('EmailAlias') == false) {
+				static::Trace(".. Step not relevant: No relevant classes exist (ContactMethod, EmailAlias).");
+				return;
 			}
 			
-			
+			/** @var \EmailMessage $oEmail E-mail message. */
 			$oEmail = static::GetMail();
-			$oMailBox = static::GetMailBox();
+			
+			/** @var \RawEmailMessage $oRawEmail Raw e-mail message. */
+			$oRawEmail = static::GetRawMail();
+
+			/** @var \Ticket $oTicket The ticket. */
 			$oTicket = static::GetTicket();
 			
-			$sCallerEmail = $oEmail->sCallerEmail;
+			$sSenderEmail = $oRawEmail->GetSender()[0]->GetEmailAddress();
+			
+			$aRecipients = static::GetRecipientAddresses();
+			$aMailBoxAliases = static::GetMailBoxAliases();
 
-			// Take both the To: and CC:
-			$aAllContacts = array_merge($oEmail->aTos, $oEmail->aCCs);
-			$aAllContacts = static::GetAddressesFromRecipients($aAllContacts);
+			// Ignore e-mail addresses of:
+			// - Primary e-mail address of this mailbox; and its aliases.
+			// - The original caller's e-mail address.
 			
-			// Mailbox aliases
-			$sMailBoxAliases = $oMailBox->Get('mail_aliases');
-			$aMailBoxAliases = (trim($sMailBoxAliases) == '' ? [] : preg_split(NEWLINE_REGEX, $sMailBoxAliases));
-			
-			// Ignore helpdesk mailbox; any helpdesk mailbox aliases, original caller's email address
-			if($oTicket !== null) {
-				// For existing tickets: other people might reply. So only exclude mailbox aliases and the original caller.
-				// If it's someone else replying, it should be seen as a new contact.
-				$sOriginalCallerEmail = $oTicket->Get('caller_id->email');
-				$aAllOtherContacts = array_udiff($aAllContacts, [$sOriginalCallerEmail, $oMailBox->Get('login')], $aMailBoxAliases, 'strcasecmp');
-			}
-			else {
-				$aAllOtherContacts = array_udiff($aAllContacts, [$sCallerEmail, $oMailBox->Get('login')], $aMailBoxAliases, 'strcasecmp');
-			}
-			$aAllOtherContacts = array_unique($aAllOtherContacts);
+			// For existing tickets: Other people might reply. 
+			// So only exclude mailbox aliases and the original caller.
+			// If it's someone else replying, it should be seen as a new contact.
 
+			// For new tickets: exclude the current sender.
+
+			$sOriginalCallerEmail = ($oTicket !== null ? $oTicket->Get('caller_id->email') : $sSenderEmail);
+			$aRemainingContacts = array_udiff($aRecipients, array_merge([ $sOriginalCallerEmail ], $aMailBoxAliases), 'strcasecmp');
+
+			// Make sure there are no duplicates now.
+			$aRemainingContacts = array_unique($aRemainingContacts);
 			
-			// For each recipient: try to look up the contact method, find the person object and update the person's e-mail.
-			// Since the default Mail to Ticket Automation will try to match contacts based on the person's e-mail property, this is currently the way to go.
-			foreach($aAllOtherContacts as $sCurrentEmail) {
+			// For each recipient: Try to find the person object.
+			foreach($aRemainingContacts as $sCurrentEmail) {
+			
+				/** @var \Person|null $oCaller The related person. */	
+				$oPerson = StepFindCallerByContactMethod::FindContactByEmail($sCurrentEmail);
 				
-				// Check if this contact exists.
-				// Non-existing contacts must be created.
-				// Actual linking of contacts happens after steps have been processed.
-				$sContactQuery = 'SELECT ContactMethod WHERE contact_method = "email" AND contact_detail LIKE :email';
-				$oSet_Methods = new DBObjectSet(DBObjectSearch::FromOQL($sContactQuery), [], [
-					'email' => $sCurrentEmail
-				]);
-				
-				static::Trace(".. Results (contact methods): {$oSet_Methods->Count()}");
-				
-				// Only if unique match
-				if($oSet_Methods->Count() == 1) {
+				// Only if there is a match.
+				if($oPerson !== null) {
+
+					// Add to related contacts.
+					$oEmail->AddRelatedContact($oPerson);
 					
-					$oMethod = $oSet_Methods->Fetch();
+					static::Trace(".. Update person {$oPerson->Get('friendlyname')} - Set primary e-mail to {$sCurrentEmail}");
+					$oPerson->Set('email', $sCurrentEmail);
+					$oPerson->DBUpdate();
 					
-					$sPersonQuery = 'SELECT Person WHERE id = :id';
-					$oSet_Persons = new DBObjectSet(DBObjectSearch::FromOQL($sPersonQuery), [], [
-						'id' => $oMethod->Get('person_id')
-					]);
-					
-					static::Trace(".. Results (linked person): {$oSet_Persons->Count()}");
-					
-					$oPerson = $oSet_Persons->Fetch();
-					if($oPerson !== null) {
-						
-						static::Trace(".. Update person {$oPerson->Get('friendlyname')} - set e-mail to {$sCurrentEmail}");
-						$oPerson->Set('email', $sCurrentEmail);
-						$oPerson->DBUpdate();
-						
-					}
 				
 				}
 				

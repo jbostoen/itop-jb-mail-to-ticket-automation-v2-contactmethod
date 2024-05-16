@@ -3,8 +3,8 @@
 	<extension_code><![CDATA[jb-mail-to-ticket-automation-v2-contactmethod]]></extension_code>
 	<company></company>
 	<author><![CDATA[Jeffrey Bostoen]]></author>
-	<label><![CDATA[Feature: Mail to Ticket Automation - find caller by contact method]]></label>
-	<description><![CDATA[Considers ContactMethod first to find caller.]]></description>
+	<label><![CDATA[Feature: Mail to Ticket Automation - Find contacts by contact method / e-mail alias]]></label>
+	<description><![CDATA[Additional attempts to find a contacts by their contact methods and/or e-mail aliases.]]></description>
 	<version>2.7.230123</version>
 	<release_date>2023-01-23</release_date>
 	<version_description><![CDATA[]]></version_description>
